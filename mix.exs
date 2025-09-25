@@ -64,7 +64,7 @@ defmodule AnomaPay.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:anoma_sdk, git: "git@github.com:anoma/anoma-sdk.git", branch: "main"},
+      {:anoma_sdk, git: "https://github.com/anoma/anoma-sdk", branch: "main"},
       {:rustler, "~> 0.36.1", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
