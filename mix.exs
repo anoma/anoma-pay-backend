@@ -64,10 +64,11 @@ defmodule AnomaPay.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:anoma_sdk, git: "https://github.com/anoma/anoma-sdk", branch: "main"},
-      {:rustler, "~> 0.36.1", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # app deps
+      {:anoma_sdk, git: "https://github.com/anoma/anoma-sdk", branch: "main"},
+      {:rustler, "~> 0.36.1", runtime: false},
       {:req, "~> 0.5.0", only: :dev},
       {:open_api_spex, "~> 3.21"}
     ]

@@ -1,0 +1,15 @@
+[package]
+name = "anomapay_nif"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "anomapay_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.2"
+arm = { path = "/Users/christophe/RustroverProjects/arm-risc0/arm",  default-features = false, features = ["transaction", "bonsai", "nif", "groth16_prover", "prove"] }
+transfer_witness = { path = "../transfer_witness" , features = ["nif"]}
+transfer_library = { path = "../transfer_library"}
