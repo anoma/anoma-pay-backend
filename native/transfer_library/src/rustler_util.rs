@@ -2,9 +2,9 @@
 
 use crate::TransferLogic;
 use arm::rustler_util::{at_struct, RustlerDecoder, RustlerEncoder};
-use transfer_witness::SimpleTransferWitness;
 use rustler::types::map::map_new;
 use rustler::{atoms, Decoder, Encoder, Env, NifResult, Term};
+use transfer_witness::SimpleTransferWitness;
 
 atoms! {
     at_transfer_logic = "Elixir.AnomaPay.NIF.TransferLogic",

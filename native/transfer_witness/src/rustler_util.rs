@@ -64,43 +64,47 @@ macro_rules! maybe_fetch {
     }};
 }
 
+
 macro_rules! build_map {
-    ($env:expr; $(($key:literal, $value:expr)),* $(,)?) => {{
+    ($env:expr; $(($key:literal, $value:expr $(=> $encoder:ident)?)),* $(,)?) => {{
         let mut map = map_new($env);
         $(
             map = map.map_put(
-                atom!($env, $key).encode($env),
-                $value.encode($env)
+                Atom::from_str($env, $key).expect(concat!("failed to encode ", $key)).encode($env),
+                build_map!(@encode $value, $env $(, $encoder)?)
             )?;
         )*
         map
     }};
-}
 
+    // Default to .encode()
+    (@encode $value:expr, $env:expr) => {
+        $value.encode($env)
+    };
+
+    // Use specified encoder
+    (@encode $value:expr, $env:expr, rustler_encode) => {
+        $value.rustler_encode($env)?
+    };
+}
 //--------------------------------------------------------------------------------------------------
 // AuthorizationInfo
 
 impl RustlerEncoder for AuthorizationInfo {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        Ok(map_new(env)
-            .map_put(at_struct().encode(env), at_authorization_info().encode(env))?
-            .map_put(
-                at_auth_pk().encode(env),
-                self.auth_pk.rustler_encode(env).unwrap(),
-            )?
-            .map_put(
-                at_auth_sig().encode(env),
-                self.auth_sig.rustler_encode(env).unwrap(),
-            )?)
+        let map = build_map!(env;
+        ("__struct__", atom!(env, "AnomaPay.AuthorizationInfo")),
+        ("auth_pk", self.auth_pk),
+        ("auth_sig", self.auth_sig));
+
+        Ok(map)
     }
 }
 
 impl<'a> RustlerDecoder<'a> for AuthorizationInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let auth_pk: AuthorizationVerifyingKey =
-            RustlerDecoder::rustler_decode(term.map_get(at_auth_pk().encode(term.get_env()))?)?;
-        let auth_sig: AuthorizationSignature =
-            RustlerDecoder::rustler_decode(term.map_get(at_auth_sig().encode(term.get_env()))?)?;
+        let auth_pk: AuthorizationVerifyingKey = fetch!(term, "auth_pk");
+        let auth_sig: AuthorizationSignature = fetch!(term, "auth_sig");
         Ok({ AuthorizationInfo { auth_pk, auth_sig } })
     }
 }
@@ -123,40 +127,24 @@ impl<'a> Decoder<'a> for AuthorizationInfo {
 
 impl RustlerEncoder for EncryptionInfo {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        Ok(map_new(env)
-            .map_put(
-                at_struct().encode(env),
-                at_encryption_info_struct().encode(env),
-            )?
-            .map_put(
-                at_encryption_pk().encode(env),
-                self.encryption_pk.rustler_encode(env).unwrap(),
-            )?
-            .map_put(at_sender_sk().encode(env), self.sender_sk.encode(env))?
-            .map_put(
-                at_encryption_nonce().encode(env),
-                self.encryption_nonce.encode(env),
-            )?
-            .map_put(
-                at_discovery_cipher().encode(env),
-                self.discovery_cipher.encode(env),
-            )?)
+        let map = build_map!(env;
+        ("__struct__", atom!(env, "AnomaPay.EncryptionInfo")),
+        ("encryption_pk", self.encryption_pk => rustler_encode),
+        ("sender_sk", self.sender_sk),
+        ("encryption_nonce", self.encryption_nonce),
+        ("discovery_cipher", self.discovery_cipher));
+
+        Ok(map)
     }
 }
 
 impl<'a> RustlerDecoder<'a> for EncryptionInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let encryption_pk: AffinePoint =
-            RustlerDecoder::rustler_decode(term.map_get(at_auth_pk().encode(term.get_env()))?)?;
+        let encryption_pk : AffinePoint = fetch!(term, "encryption_pk");
+        let sender_sk : SecretKey = fetch!(term, "sender_sk");
+        let encryption_nonce : Vec<u8> = fetch!(term, "encryption_nonce");
+        let discovery_cipher : Vec<u32> = fetch!(term, "discovery_cipher");
 
-        let sender_sk: SecretKey =
-            RustlerDecoder::rustler_decode(term.map_get(at_sender_sk().encode(term.get_env()))?)?;
-        let encryption_nonce: Vec<u8> = RustlerDecoder::rustler_decode(
-            term.map_get(at_encryption_nonce().encode(term.get_env()))?,
-        )?;
-        let discovery_cipher: Vec<u32> = RustlerDecoder::rustler_decode(
-            term.map_get(at_discovery_cipher().encode(term.get_env()))?,
-        )?;
         Ok({
             EncryptionInfo {
                 encryption_pk,

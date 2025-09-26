@@ -3,7 +3,9 @@ use arm::encryption::AffinePoint;
 use arm::evm::CallType;
 use arm::nullifier_key::NullifierKey;
 use rustler::nif;
-use transfer_witness::{AuthorizationInfo, EncryptionInfo, ForwarderInfo, PermitInfo, SimpleTransferWitness};
+use transfer_witness::{
+    AuthorizationInfo, EncryptionInfo, ForwarderInfo, PermitInfo, SimpleTransferWitness,
+};
 
 // #[nif]
 // pub fn verifying_key_nif() -> Vec<u8> {
