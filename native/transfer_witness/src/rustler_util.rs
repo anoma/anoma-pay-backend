@@ -64,7 +64,6 @@ macro_rules! maybe_fetch {
     }};
 }
 
-
 macro_rules! build_map {
     ($env:expr; $(($key:literal, $value:expr $(=> $encoder:ident)?)),* $(,)?) => {{
         let mut map = map_new($env);
@@ -105,7 +104,7 @@ impl<'a> RustlerDecoder<'a> for AuthorizationInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
         let auth_pk: AuthorizationVerifyingKey = fetch!(term, "auth_pk");
         let auth_sig: AuthorizationSignature = fetch!(term, "auth_sig");
-        Ok({ AuthorizationInfo { auth_pk, auth_sig } })
+        Ok(AuthorizationInfo { auth_pk, auth_sig })
     }
 }
 
@@ -140,10 +139,10 @@ impl RustlerEncoder for EncryptionInfo {
 
 impl<'a> RustlerDecoder<'a> for EncryptionInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let encryption_pk : AffinePoint = fetch!(term, "encryption_pk");
-        let sender_sk : SecretKey = fetch!(term, "sender_sk");
-        let encryption_nonce : Vec<u8> = fetch!(term, "encryption_nonce");
-        let discovery_cipher : Vec<u32> = fetch!(term, "discovery_cipher");
+        let encryption_pk: AffinePoint = fetch!(term, "encryption_pk");
+        let sender_sk: SecretKey = fetch!(term, "sender_sk");
+        let encryption_nonce: Vec<u8> = fetch!(term, "encryption_nonce");
+        let discovery_cipher: Vec<u32> = fetch!(term, "discovery_cipher");
 
         Ok({
             EncryptionInfo {
@@ -174,20 +173,12 @@ impl<'a> Decoder<'a> for EncryptionInfo {
 
 impl RustlerEncoder for PermitInfo {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        Ok(map_new(env)
-            .map_put(
-                at_struct().encode(env),
-                at_encryption_info_struct().encode(env),
-            )?
-            .map_put(
-                at_permit_nonce().encode(env),
-                self.permit_nonce.rustler_encode(env).unwrap(),
-            )?
-            .map_put(
-                at_permit_deadline().encode(env),
-                self.permit_deadline.encode(env),
-            )?
-            .map_put(at_permit_sig().encode(env), self.permit_sig.encode(env))?)
+        let map = build_map!(env;
+        ("__struct__", atom!(env, "AnomaPay.PermitInfo")),
+        ("permit_nonce", self.permit_nonce),
+        ("permit_deadline", self.permit_deadline),
+        ("permit_sig", self.permit_sig));
+        Ok(map)
     }
 }
 
