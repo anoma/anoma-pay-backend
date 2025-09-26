@@ -246,15 +246,5 @@ impl<'a> RustlerDecoder<'a> for SimpleTransferWitness {
     }
 }
 
-impl Encoder for SimpleTransferWitness {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode SimpleTransferWitness")
-    }
-}
-
-impl<'a> Decoder<'a> for SimpleTransferWitness {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        SimpleTransferWitness::rustler_decode(term)
-    }
-}
+encoder!(SimpleTransferWitness);
+decoder!(SimpleTransferWitness);
