@@ -7,36 +7,9 @@ use arm::evm::CallType;
 use arm::merkle_path::MerklePath;
 use arm::nullifier_key::NullifierKey;
 use arm::resource::Resource;
-use arm::rustler_util::{at_struct, RustlerDecoder, RustlerEncoder};
+use arm::rustler_util::{RustlerDecoder, RustlerEncoder};
 use rustler::types::map::map_new;
-use rustler::{atoms, Atom, Decoder, Encoder, Env, Error, NifResult, Term};
-
-atoms! {
-    at_simple_transfer_witness = "AnomaPay.SimpleTransferWitness",
-    at_authorization_info = "AnomaPay.AuthorizationInfo",
-    at_encryption_info_struct = "AnomaPay.EncryptionInfoStruct",
-    at_forwarder_info_struct = "AnomaPay.ForwarderInfoStruct",
-    at_call_type = "call_type",
-    at_forwarder_addr = "forwarder_addr",
-    at_token_addr = "token_addr",
-    at_user_addr = "user_addr",
-    at_permit_info = "permit_info",
-    at_is_consumed = "is_consumed",
-    at_existence_path = "existence_path",
-    at_nf_key = "nf_key",
-    at_auth_info = "auth_info",
-    at_encryption_info = "encryption_info",
-    at_forwarder_info = "forwarder_info",
-    at_auth_pk = "auth_pk",
-    at_auth_sig = "auth_sig",
-    at_encryption_pk = "encryption_pk",
-    at_sender_sk = "sender_sk",
-    at_encryption_nonce = "encryption_nonce",
-    at_discovery_cipher = "discovery_cipher",
-    at_permit_nonce = "permit_nonce",
-    at_permit_deadline = "permit_deadline",
-    at_permit_sig = "permit_sig",
-}
+use rustler::{Atom, Decoder, Encoder, Env, Error, NifResult, Term};
 
 macro_rules! atom {
     ($env:expr, $s:expr) => {
@@ -86,6 +59,27 @@ macro_rules! build_map {
         $value.rustler_encode($env)?
     };
 }
+
+macro_rules! encoder {
+    ($type:ty) => {
+        impl Encoder for $type {
+            fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+                let encoded = self.rustler_encode(env);
+                encoded.expect(concat!("failed to encode ", stringify!($type)))
+            }
+        }
+    };
+}
+
+macro_rules! decoder {
+    ($type:ty) => {
+        impl<'a> Decoder<'a> for $type {
+            fn decode(term: Term<'a>) -> NifResult<Self> {
+                <$type>::rustler_decode(term)
+            }
+        }
+    };
+}
 //--------------------------------------------------------------------------------------------------
 // AuthorizationInfo
 
@@ -108,18 +102,8 @@ impl<'a> RustlerDecoder<'a> for AuthorizationInfo {
     }
 }
 
-impl Encoder for AuthorizationInfo {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode AuthorizationInfo")
-    }
-}
-
-impl<'a> Decoder<'a> for AuthorizationInfo {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        AuthorizationInfo::rustler_decode(term)
-    }
-}
+encoder!(AuthorizationInfo);
+decoder!(AuthorizationInfo);
 
 //--------------------------------------------------------------------------------------------------
 // EncryptionInfo
@@ -155,18 +139,8 @@ impl<'a> RustlerDecoder<'a> for EncryptionInfo {
     }
 }
 
-impl Encoder for EncryptionInfo {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode EncryptionInfo")
-    }
-}
-
-impl<'a> Decoder<'a> for EncryptionInfo {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        EncryptionInfo::rustler_decode(term)
-    }
-}
+encoder!(EncryptionInfo);
+decoder!(EncryptionInfo);
 
 //--------------------------------------------------------------------------------------------------
 // PermitInfo
@@ -184,14 +158,9 @@ impl RustlerEncoder for PermitInfo {
 
 impl<'a> RustlerDecoder<'a> for PermitInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let permit_nonce: Vec<u8> = RustlerDecoder::rustler_decode(
-            term.map_get(at_permit_nonce().encode(term.get_env()))?,
-        )?;
-        let permit_deadline: Vec<u8> = RustlerDecoder::rustler_decode(
-            term.map_get(at_permit_deadline().encode(term.get_env()))?,
-        )?;
-        let permit_sig: Vec<u8> =
-            RustlerDecoder::rustler_decode(term.map_get(at_permit_sig().encode(term.get_env()))?)?;
+        let permit_nonce: Vec<u8> = fetch!(term, "permit_nonce");
+        let permit_deadline: Vec<u8> = fetch!(term, "permit_deadline");
+        let permit_sig: Vec<u8> = fetch!(term, "permit_sig");
 
         Ok(PermitInfo {
             permit_deadline,
@@ -201,51 +170,29 @@ impl<'a> RustlerDecoder<'a> for PermitInfo {
     }
 }
 
-impl Encoder for PermitInfo {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode PermitInfo")
-    }
-}
-
-impl<'a> Decoder<'a> for PermitInfo {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        PermitInfo::rustler_decode(term)
-    }
-}
+encoder!(PermitInfo);
+decoder!(PermitInfo);
 
 //--------------------------------------------------------------------------------------------------
 // ForwarderInfo
 
 impl RustlerEncoder for ForwarderInfo {
     fn rustler_encode<'a>(&self, env: Env<'a>) -> Result<Term<'a>, Error> {
-        Ok(map_new(env)
-            .map_put(
-                at_struct().encode(env),
-                at_forwarder_info_struct().encode(env),
-            )?
-            .map_put(at_call_type().encode(env), self.call_type.encode(env))?)
+        let map = build_map!(env;
+        ("__struct__", atom!(env, "AnomaPay.ForwarderInfo")),
+        ("call_type", self.call_type));
+
+        Ok(map)
     }
 }
 
 impl<'a> RustlerDecoder<'a> for ForwarderInfo {
     fn rustler_decode(term: Term<'a>) -> NifResult<Self> {
-        let call_type: CallType =
-            RustlerDecoder::rustler_decode(term.map_get(at_call_type().encode(term.get_env()))?)?;
-        let forwarder_addr: Vec<u8> = RustlerDecoder::rustler_decode(
-            term.map_get(at_forwarder_addr().encode(term.get_env()))?,
-        )?;
-        let token_addr: Vec<u8> =
-            RustlerDecoder::rustler_decode(term.map_get(at_token_addr().encode(term.get_env()))?)?;
-        let user_addr: Vec<u8> =
-            RustlerDecoder::rustler_decode(term.map_get(at_user_addr().encode(term.get_env()))?)?;
-
-        // decode Option<PermitInfo>
-        let mut permit_info: Option<PermitInfo> = None;
-        let permit_info_term = term.map_get(at_permit_info().encode(term.get_env()))?;
-        if !permit_info_term.is_atom() {
-            permit_info = Some(RustlerDecoder::rustler_decode(permit_info_term)?);
-        }
+        let call_type: CallType = fetch!(term, "call_type");
+        let forwarder_addr = fetch!(term, "forwarder_addr");
+        let token_addr = fetch!(term, "token_addr");
+        let user_addr = fetch!(term, "user_addr");
+        let permit_info = maybe_fetch!(term, "permit_info");
 
         Ok(ForwarderInfo {
             call_type,
@@ -257,18 +204,8 @@ impl<'a> RustlerDecoder<'a> for ForwarderInfo {
     }
 }
 
-impl Encoder for ForwarderInfo {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let encoded = self.rustler_encode(env);
-        encoded.expect("failed to encode ForwarderInfo")
-    }
-}
-
-impl<'a> Decoder<'a> for ForwarderInfo {
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        ForwarderInfo::rustler_decode(term)
-    }
-}
+encoder!(ForwarderInfo);
+decoder!(ForwarderInfo);
 
 //--------------------------------------------------------------------------------------------------
 // SimpleTransferWitness

@@ -1,7 +1,6 @@
 #![cfg(feature = "nif")]
 
-
-use rustler::{atoms};
+use rustler::atoms;
 
 atoms! {
     at_transfer_logic = "Elixir.AnomaPay.NIF.TransferLogic",
